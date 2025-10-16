@@ -2,7 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function App() {
-  const [playlist, setPlaylist] = useState([]);
+  const [playlist] = useState([
+    { id: 1, title: 'Song One', artist: 'Artist A', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+    { id: 2, title: 'Song Two', artist: 'Artist B', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+    { id: 3, title: 'Song Three', artist: 'Artist C', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+    { id: 4, title: 'Song Four', artist: 'Artist D', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+    { id: 5, title: 'Song Five', artist: 'Artist E', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' },
+  ]);
+
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -10,138 +17,138 @@ function App() {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    // Fetch playlist from backend API
-    fetch('https://your-backend-url.onrender.com/api/playlist')
-      .then(response => response.json())
-      .then(data => {
-        setPlaylist(data);
-        if (data.length > 0) {
-          setCurrentTrack(data[0]);
-        }
-      })
-      .catch(error => console.error('Error fetching playlist:', error));
-  }, []);
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
-      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-    }
+    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateDuration = () => setDuration(audio.duration);
+
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateDuration);
+
     return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
-        audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      }
+      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('loadedmetadata', updateDuration);
     };
   }, []);
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
+  useEffect(() => {
+    if (currentTrack && audioRef.current) {
+      audioRef.current.src = currentTrack.url;
+      if (isPlaying) {
+        audioRef.current.play();
+      }
     }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
+  }, [currentTrack]);
 
   const playTrack = (track) => {
     setCurrentTrack(track);
     setIsPlaying(true);
-    if (audioRef.current) {
-      audioRef.current.src = track.url;
-      audioRef.current.play();
-    }
   };
 
   const togglePlayPause = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
     }
+    setIsPlaying(!isPlaying);
   };
 
   const skipTrack = (direction) => {
-    if (!currentTrack) return;
-    const currentIndex = playlist.findIndex(track => track.id === currentTrack.id);
-    let newIndex;
+    const currentIndex = playlist.findIndex((t) => t.id === currentTrack?.id);
+    let nextIndex;
     if (direction === 'next') {
-      newIndex = (currentIndex + 1) % playlist.length;
+      nextIndex = (currentIndex + 1) % playlist.length;
     } else {
-      newIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+      nextIndex = (currentIndex - 1 + playlist.length) % playlist.length;
     }
-    playTrack(playlist[newIndex]);
+    playTrack(playlist[nextIndex]);
   };
 
   const handleSeek = (e) => {
-    const seekTime = (e.target.value / 100) * duration;
-    if (audioRef.current) {
-      audioRef.current.currentTime = seekTime;
-      setCurrentTime(seekTime);
-    }
+    const newTime = (e.target.value / 100) * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const formatTime = (time) => {
-    if (isNaN(time)) return '0:00';
+    if (!time || isNaN(time)) return '0:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="App">
-      <div className="music-player">
-        <h1>Music Player</h1>
+    <div className="app">
+      <div className="container">
+        <header className="header">
+          <h1>🎵 Music Player</h1>
+        </header>
         
-        <div className="current-track">
-          {currentTrack ? (
-            <>
-              <h2>{currentTrack.title}</h2>
-              <p>{currentTrack.artist}</p>
-            </>
-          ) : (
-            <p>No track selected</p>
-          )}
+        <div className="now-playing-card">
+          <div className="album-art">
+            {currentTrack ? (
+              <div className="album-placeholder">
+                <span className="music-icon">🎵</span>
+              </div>
+            ) : (
+              <div className="album-placeholder">
+                <span className="music-icon">🎵</span>
+              </div>
+            )}
+          </div>
+          <div className="track-info">
+            {currentTrack ? (
+              <>
+                <h2 className="track-title">{currentTrack.title}</h2>
+                <p className="track-artist">{currentTrack.artist}</p>
+              </>
+            ) : (
+              <p className="no-track">Select a track to play</p>
+            )}
+          </div>
         </div>
 
         <audio ref={audioRef} />
-
-        <div className="controls">
-          <button onClick={() => skipTrack('prev')}>⏮</button>
-          <button onClick={togglePlayPause}>
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-          <button onClick={() => skipTrack('next')}>⏭</button>
+        
+        <div className="controls-card">
+          <div className="controls">
+            <button className="control-btn" onClick={() => skipTrack('prev')}>⏮</button>
+            <button className="play-btn" onClick={togglePlayPause}>
+              {isPlaying ? '⏸' : '▶'}
+            </button>
+            <button className="control-btn" onClick={() => skipTrack('next')}>⏭</button>
+          </div>
+          
+          <div className="progress-bar">
+            <span className="time">{formatTime(currentTime)}</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={duration ? (currentTime / duration) * 100 : 0}
+              onChange={handleSeek}
+              className="progress-slider"
+            />
+            <span className="time">{formatTime(duration)}</span>
+          </div>
         </div>
 
-        <div className="progress-bar">
-          <span>{formatTime(currentTime)}</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={duration ? (currentTime / duration) * 100 : 0}
-            onChange={handleSeek}
-          />
-          <span>{formatTime(duration)}</span>
-        </div>
-
-        <div className="playlist">
-          <h3>Playlist</h3>
-          <ul>
+        <div className="playlist-card">
+          <h3 className="playlist-title">Playlist</h3>
+          <ul className="playlist">
             {playlist.map(track => (
               <li
                 key={track.id}
-                className={currentTrack && currentTrack.id === track.id ? 'active' : ''}
+                className={`playlist-item ${currentTrack && currentTrack.id === track.id ? 'active' : ''}`}
                 onClick={() => playTrack(track)}
               >
-                <strong>{track.title}</strong> - {track.artist}
+                <div className="track-number">{track.id}</div>
+                <div className="track-details">
+                  <strong className="item-title">{track.title}</strong>
+                  <span className="item-artist">{track.artist}</span>
+                </div>
               </li>
             ))}
           </ul>
